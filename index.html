@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Coach Level">
+<title>Coach Level</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: single instrument column — status, bubble vial, readouts, coach plan view with wheel lifts, controls, settings */
+:root{
+  --bg:#eef1ec; --panel:#ffffff; --ink:#1c2420; --muted:#5b6a62; --line:#d3dad4;
+  --accent:#2c5c48; --accent-ink:#ffffff; --vial:#c9d64a; --vial-edge:#8e9a1c;
+  --ok:#23804f; --warn:#b77d00; --bad:#b8352a;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#111613; --panel:#1a201c; --ink:#e4ebe6; --muted:#8fa096; --line:#2b3530;
+  --accent:#7cc3a0; --accent-ink:#0e1a14; --vial:#cfdc5a; --vial-edge:#e6f08a;
+  --ok:#5cc58c; --warn:#e2ad3a; --bad:#ef7468; color-scheme:dark;}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 var(--body);
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:max(20px,env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:14px;padding-block:14px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{font:700 1.75rem/1 var(--display);letter-spacing:.02em;margin:0;text-transform:uppercase}
+.pill{font:600 .8rem/1 var(--body);letter-spacing:.08em;text-transform:uppercase;padding:7px 12px;border-radius:999px;border:1.5px solid currentColor}
+.pill.ok{color:var(--ok)} .pill.warn{color:var(--warn)} .pill.bad{color:var(--bad)} .pill.idle{color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+.note{color:var(--muted);font-size:.9rem;margin:0}
+.msg{font-size:.9rem;margin:0;color:var(--warn)}
+.msg:empty{display:none}
+
+.vial{display:flex;justify-content:center}
+.vial svg{width:min(78vw,260px);height:auto;display:block}
+.ring{fill:none;stroke:var(--line);stroke-width:1.5}
+.ring.tol{stroke:var(--ok);stroke-dasharray:4 4}
+.cross{stroke:var(--line);stroke-width:1}
+.face{fill:var(--panel);stroke:var(--muted);stroke-width:2}
+.bubble{fill:var(--vial);stroke:var(--vial-edge);stroke-width:2}
+.axislbl{fill:var(--muted);font:600 11px var(--body);letter-spacing:.1em}
+
+.reads{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.read{display:flex;flex-direction:column;gap:2px}
+.read .lbl{font:600 .72rem/1 var(--body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.read .val{font:600 2.1rem/1.1 var(--mono);font-variant-numeric:tabular-nums}
+.read .sub{font-size:.88rem;color:var(--muted)}
+
+.plan{display:grid;grid-template-columns:1fr 92px 1fr;grid-template-rows:auto auto;gap:10px;align-items:center}
+.coach{grid-column:2;grid-row:1/3;align-self:stretch;display:flex;justify-content:center}
+.coach svg{width:100%;height:100%;min-height:200px}
+.coach .body{fill:none;stroke:var(--muted);stroke-width:2}
+.coach .front{fill:var(--muted);font:700 10px var(--body);letter-spacing:.12em}
+.wheel{border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.wheel .w{font:600 .72rem/1 var(--body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.wheel .in{font:600 1.3rem/1.15 var(--mono);font-variant-numeric:tabular-nums}
+.wheel .blk{font-size:.85rem;color:var(--muted)}
+.wheel.lift{border-color:var(--warn);border-width:2px;padding:7px 9px}
+.wheel.lift .in{color:var(--warn)}
+.r{text-align:right}
+
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{font:600 1rem/1 var(--body);padding:14px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;min-height:48px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);grid-column:1/-1}
+button.on{border-color:var(--accent);color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+.cal{display:flex;flex-direction:column;gap:10px}
+.cal h2,details h2{font:700 1.15rem/1.1 var(--display);text-transform:uppercase;letter-spacing:.04em;margin:0}
+.cal ol{margin:0;padding-left:1.2rem;display:flex;flex-direction:column;gap:4px}
+.cal li.done{color:var(--muted);text-decoration:line-through}
+
+details summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:"+";font:600 1.3rem var(--mono);color:var(--muted)}
+details[open] summary::after{content:"–"}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field.full{grid-column:1/-1}
+.field label{font:600 .78rem/1.2 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.field input,.field select{font:500 1rem var(--mono);padding:10px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
+.field .hint{font-size:.8rem;color:var(--muted)}
+.tag{font:600 .72rem var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--warn)}
+.form .btns{grid-column:1/-1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Coach Level</h1>
+    <span id="status" class="pill idle">Not started</span>
+  </header>
+
+  <p id="msg" class="msg" role="status"></p>
+
+  <section class="panel vial" aria-label="Bubble level">
+    <svg viewBox="-130 -130 260 260" role="img" aria-label="Bubble moves toward the high side">
+      <circle class="face" r="118"/>
+      <line class="cross" x1="-118" y1="0" x2="118" y2="0"/>
+      <line class="cross" x1="0" y1="-118" x2="0" y2="118"/>
+      <circle class="ring" r="39.3"/>
+      <circle class="ring" r="78.7"/>
+      <circle id="tolRing" class="ring tol" r="11.8"/>
+      <text class="axislbl" x="0" y="-102" text-anchor="middle">FRONT</text>
+      <text class="axislbl" x="0" y="112" text-anchor="middle">REAR</text>
+      <text class="axislbl" x="-104" y="4" text-anchor="middle">L</text>
+      <text class="axislbl" x="104" y="4" text-anchor="middle">R</text>
+      <text class="axislbl" x="42" y="-4" style="font-size:9px">1°</text>
+      <text class="axislbl" x="81" y="-4" style="font-size:9px">2°</text>
+      <circle id="bubble" class="bubble" r="16" cx="0" cy="0"/>
+    </svg>
+  </section>
+
+  <section class="panel reads" aria-label="Readings">
+    <div class="read"><span class="lbl">Pitch</span><span id="pitchVal" class="val">0.0°</span><span id="pitchSub" class="sub">front / rear</span></div>
+    <div class="read"><span class="lbl">Roll</span><span id="rollVal" class="val">0.0°</span><span id="rollSub" class="sub">left / right</span></div>
+  </section>
+
+  <section class="panel" aria-label="Wheel lifts">
+    <div class="plan">
+      <div class="wheel" id="wFL"><span class="w">Left front</span><span class="in">—</span><span class="blk">&nbsp;</span></div>
+      <div class="coach"><svg viewBox="0 0 92 220" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <path class="body" d="M14 34 Q14 10 46 10 Q78 10 78 34 L78 210 L14 210 Z"/>
+        <line class="body" x1="14" y1="54" x2="78" y2="54"/>
+        <text class="front" x="46" y="38" text-anchor="middle">FRONT</text>
+        <path d="M46 70 l-8 12 h16 z" fill="var(--muted)"/>
+      </svg></div>
+      <div class="wheel r" id="wFR"><span class="w">Right front</span><span class="in">—</span><span class="blk">&nbsp;</span></div>
+      <div class="wheel" id="wRL"><span class="w">Left rear</span><span class="in">—</span><span class="blk">&nbsp;</span></div>
+      <div class="wheel r" id="wRR"><span class="w">Right rear</span><span class="in">—</span><span class="blk">&nbsp;</span></div>
+    </div>
+    <p id="dimNote" class="note" style="margin-top:10px"></p>
+  </section>
+
+  <section class="btns" aria-label="Controls">
+    <button id="startBtn" class="primary">Start level</button>
+    <button id="holdBtn">Hold reading</button>
+    <button id="zeroBtn">Zero here</button>
+  </section>
+
+  <section id="calPanel" class="panel cal" hidden>
+    <h2>Calibrate phone sensor</h2>
+    <p class="note">This works on any flat spot, even one that isn't level. It's a reversal check: the same spot read both ways cancels out the slope and leaves only the phone's own error.</p>
+    <ol>
+      <li id="cal1">Lay the phone flat on a solid surface. Mark where it sits. Tap Capture.</li>
+      <li id="cal2">Turn the phone end-for-end (180°) in the exact same spot. Tap Capture.</li>
+    </ol>
+    <div class="btns">
+      <button id="capBtn" class="primary">Capture position 1</button>
+      <button id="calCancel" style="grid-column:1/-1">Cancel</button>
+    </div>
+  </section>
+
+  <details class="panel" id="settings">
+    <summary><h2>Settings</h2></summary>
+    <div class="form">
+      <div class="field"><label for="wb">Wheelbase (in)</label><input id="wb" type="number" inputmode="decimal" step="0.5" min="1"><span class="hint">Front axle to rear axle</span></div>
+      <div class="field"><label for="tr">Track width (in)</label><input id="tr" type="number" inputmode="decimal" step="0.5" min="1"><span class="hint">Center of left tire to right tire</span></div>
+      <div class="field"><label for="blk">Block height (in)</label><input id="blk" type="number" inputmode="decimal" step="0.125" min="0.1"><span class="hint">One leveling block</span></div>
+      <div class="field"><label for="tol">"Level" within (°)</label><input id="tol" type="number" inputmode="decimal" step="0.1" min="0.05"><span class="hint">Green zone</span></div>
+      <div class="field full"><label for="orient">Top of phone points toward</label>
+        <select id="orient">
+          <option value="front">Front of coach</option>
+          <option value="rear">Rear of coach</option>
+          <option value="left">Driver side (left)</option>
+          <option value="right">Passenger side (right)</option>
+        </select>
+        <span class="hint">Always place the phone in the same spot, the same way.</span></div>
+      <div class="btns">
+        <button id="calBtn">Calibrate sensor</button>
+        <button id="clearZero">Clear zero</button>
+      </div>
+      <p id="calState" class="note full" style="grid-column:1/-1"></p>
+    </div>
+  </details>
+
+  <p class="note">Bubble drifts to the high side. Lift amounts assume you only raise wheels, never lower them. "Hold reading" freezes the numbers so you can carry the phone outside to the blocks.</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var KEY = "coachLevel.v1";
+  var defaults = {wb:200, tr:75, blk:1, tol:0.3, orient:"front", bias:{b:0,g:0}, zero:{p:0,r:0}, example:true, calibrated:false};
+  var S = load();
+
+  var raw = {b:0,g:0}, filt = null, running = false, demo = false, gotEvent = false;
+  var hold = null, sampler = null, calStep = 0, cal1 = null, wakeLock = null, t0 = performance.now();
+
+  function load(){
+    try{ var s = JSON.parse(localStorage.getItem(KEY)); if(s) return Object.assign({}, defaults, s); }catch(e){}
+    return JSON.parse(JSON.stringify(defaults));
+  }
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+  function $(id){ return document.getElementById(id); }
+  function say(t){ $("msg").textContent = t || ""; }
+
+  /* ---------- sensor ---------- */
+  function onOri(e){
+    if(e.beta == null || e.gamma == null) return;
+    gotEvent = true;
+    raw.b = e.beta; raw.g = e.gamma;
+    if(!filt){ filt = {b:raw.b, g:raw.g}; }
+    else { var a = 0.12; filt.b += a*(raw.b-filt.b); filt.g += a*(raw.g-filt.g); }
+    if(sampler){ sampler.b += raw.b; sampler.g += raw.g; sampler.n++; }
+  }
+
+  function demoTick(){
+    var t = (performance.now()-t0)/1000;
+    raw.b = 1.1 + 0.15*Math.sin(t*0.7);
+    raw.g = 0.8 + 0.12*Math.sin(t*0.5+1);
+    if(!filt) filt = {b:raw.b,g:raw.g};
+    filt.b = raw.b; filt.g = raw.g;
+    if(sampler){ sampler.b += raw.b; sampler.g += raw.g; sampler.n++; }
+  }
+
+  async function start(){
+    say("");
+    if(running){ return; }
+    if(!window.isSecureContext){ say("iPhone only shares motion data with pages served over https. Host this file (GitHub Pages works) and open it from that address."); }
+    try{
+      if(typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function"){
+        var r = await DeviceOrientationEvent.requestPermission();
+        if(r !== "granted"){ say("Motion access was declined. To allow it, close Safari's tab and reopen the page, then tap Start and choose Allow."); return; }
+      }
+    }catch(err){ say("Couldn't ask for motion access: " + (err && err.message ? err.message : err)); }
+    window.addEventListener("deviceorientation", onOri);
+    running = true;
+    $("startBtn").textContent = "Running";
+    $("startBtn").disabled = true;
+    try{ if(navigator.wakeLock){ wakeLock = await navigator.wakeLock.request("screen"); } }catch(e){}
+    setTimeout(function(){
+      if(!gotEvent){
+        demo = true;
+        say("No tilt sensor found on this device, so it's showing demo readings. Open it on your iPhone for real numbers.");
+      }
+    }, 1500);
+  }
+
+  document.addEventListener("visibilitychange", async function(){
+    if(document.visibilityState === "visible" && running && navigator.wakeLock){
+      try{ wakeLock = await navigator.wakeLock.request("screen"); }catch(e){}
+    }
+  });
+
+  /* ---------- math ---------- */
+  function phoneFrame(b, g){
+    // beta: top edge up = +; gamma: right edge down = +
+    return { top: b - S.bias.b, right: -(g - S.bias.g) };
+  }
+  function coachFrame(p){
+    switch(S.orient){
+      case "rear":  return {front:-p.top,  right:-p.right};
+      case "right": return {front:-p.right, right: p.top};
+      case "left":  return {front: p.right, right:-p.top};
+      default:      return {front: p.top,  right: p.right};
+    }
+  }
+  function current(){
+    if(hold) return hold;
+    if(!filt) return null;
+    var c = coachFrame(phoneFrame(filt.b, filt.g));
+    return {pitch: c.front - S.zero.p, roll: c.right - S.zero.r};
+  }
+  function lifts(pitch, roll){
+    var tp = Math.tan(pitch*Math.PI/180), tr = Math.tan(roll*Math.PI/180);
+    var W = S.wb/2, T = S.tr/2;
+    var z = { FL: W*tp - T*tr, FR: W*tp + T*tr, RL: -W*tp - T*tr, RR: -W*tp + T*tr };
+    var max = Math.max(z.FL, z.FR, z.RL, z.RR), out = {};
+    for(var k in z) out[k] = max - z[k];
+    return out;
+  }
+  function frac(x){
+    var e = Math.round(x*8), w = Math.floor(e/8), n = e%8;
+    if(n === 0) return String(w);
+    var d = 8; while(n%2===0){ n/=2; d/=2; }
+    return (w ? w + " " : "") + n + "/" + d;
+  }
+
+  /* ---------- render ---------- */
+  var FULL = 3; // degrees at rim
+  function render(){
+    if(demo) demoTick();
+    var c = current();
+    var st = $("status");
+    if(!c){
+      st.className = "pill idle"; st.textContent = "Not started";
+    } else {
+      var m = Math.max(Math.abs(c.pitch), Math.abs(c.roll));
+      var cls = m <= S.tol ? "ok" : (m <= 1 ? "warn" : "bad");
+      var txt = m <= S.tol ? "Level" : (m <= 1 ? "Close" : "Off level");
+      if(hold) txt = "Held · " + txt;
+      if(demo) txt = "Demo · " + txt;
+      st.className = "pill " + cls; st.textContent = txt;
+
+      var sx = c.roll, sy = -c.pitch, r = Math.hypot(sx, sy), lim = 2.75;
+      if(r > lim){ sx *= lim/r; sy *= lim/r; }
+      var b = $("bubble"); b.setAttribute("cx", (sx/FULL*118).toFixed(1)); b.setAttribute("cy", (sy/FULL*118).toFixed(1));
+
+      $("pitchVal").textContent = Math.abs(c.pitch).toFixed(1) + "°";
+      $("pitchSub").textContent = Math.abs(c.pitch) < 0.05 ? "level front to rear" : (c.pitch > 0 ? "front is high" : "rear is high");
+      $("rollVal").textContent = Math.abs(c.roll).toFixed(1) + "°";
+      $("rollSub").textContent = Math.abs(c.roll) < 0.05 ? "level side to side" : (c.roll > 0 ? "right side is high" : "left side is high");
+
+      var L = lifts(c.pitch, c.roll);
+      ["FL","FR","RL","RR"].forEach(function(k){
+        var el = $("w"+k), v = L[k], need = v >= 0.0625;
+        el.classList.toggle("lift", need);
+        el.querySelector(".in").textContent = need ? "+" + v.toFixed(2) + "″" : "0″";
+        var blocks = Math.round(v / S.blk);
+        el.querySelector(".blk").textContent = need ? (frac(v) + " in · " + (blocks ? "≈" + blocks + " block" + (blocks>1?"s":"") : "under 1 block")) : "stays";
+      });
+    }
+    $("tolRing").setAttribute("r", (Math.min(S.tol, FULL)/FULL*118).toFixed(1));
+    requestAnimationFrame(render);
+  }
+
+  function renderNotes(){
+    $("dimNote").innerHTML = "";
+    var t = S.example ? '<span class="tag">Example dimensions</span> ' : "";
+    $("dimNote").innerHTML = t + "Wheelbase " + S.wb + "″ · track " + S.tr + "″ · block " + S.blk + "″" + (S.example ? " — enter your coach's numbers in Settings." : "");
+    var parts = [];
+    parts.push(S.calibrated ? "Sensor calibrated." : "Sensor not calibrated yet.");
+    parts.push((S.zero.p || S.zero.r) ? "Zero set (" + S.zero.p.toFixed(2) + "°, " + S.zero.r.toFixed(2) + "°)." : "No zero set.");
+    $("calState").textContent = parts.join(" ");
+  }
+
+  /* ---------- averaging capture ---------- */
+  function capture(ms, cb){
+    if(!running){ say("Tap Start level first."); return; }
+    sampler = {b:0,g:0,n:0};
+    setTimeout(function(){
+      var s = sampler; sampler = null;
+      if(!s.n){ say("No readings came in. Make sure the level is running."); return; }
+      cb(s.b/s.n, s.g/s.n);
+    }, ms);
+  }
+
+  /* ---------- controls ---------- */
+  $("startBtn").addEventListener("click", start);
+
+  $("holdBtn").addEventListener("click", function(){
+    if(hold){ hold = null; this.textContent = "Hold reading"; this.classList.remove("on"); return; }
+    var c = current(); if(!c){ say("Tap Start level first."); return; }
+    hold = {pitch:c.pitch, roll:c.roll}; this.textContent = "Release hold"; this.classList.add("on");
+  });
+
+  $("zeroBtn").addEventListener("click", function(){
+    if(hold){ say("Release the hold before zeroing."); return; }
+    var btn = this; btn.disabled = true; btn.textContent = "Reading…";
+    capture(1500, function(b, g){
+      var c = coachFrame(phoneFrame(b, g));
+      S.zero = {p:c.front, r:c.right}; save(); renderNotes();
+      say("Zero set. This spot now reads level. Only do this when the coach is known to be level.");
+      btn.disabled = false; btn.textContent = "Zero here";
+    });
+    if(!running){ btn.disabled = false; btn.textContent = "Zero here"; }
+  });
+
+  $("clearZero").addEventListener("click", function(){ S.zero = {p:0,r:0}; save(); renderNotes(); say("Zero cleared."); });
+
+  function showCal(on){
+    $("calPanel").hidden = !on; calStep = on ? 1 : 0; cal1 = null;
+    $("cal1").classList.remove("done"); $("capBtn").textContent = "Capture position 1"; $("capBtn").disabled = false;
+    if(on) $("calPanel").scrollIntoView({behavior:"smooth", block:"start"});
+  }
+  $("calBtn").addEventListener("click", function(){ if(!running){ say("Tap Start level first."); return; } showCal(true); });
+  $("calCancel").addEventListener("click", function(){ showCal(false); });
+  $("capBtn").addEventListener("click", function(){
+    var btn = this; btn.disabled = true; btn.textContent = "Hold still…";
+    capture(2000, function(b, g){
+      if(calStep === 1){
+        cal1 = {b:b, g:g}; calStep = 2; $("cal1").classList.add("done");
+        btn.disabled = false; btn.textContent = "Capture position 2";
+      } else {
+        S.bias = {b:(cal1.b + b)/2, g:(cal1.g + g)/2}; S.calibrated = true; save();
+        showCal(false); renderNotes();
+        say("Calibrated. Sensor offset " + S.bias.b.toFixed(2) + "° / " + S.bias.g.toFixed(2) + "°.");
+      }
+    });
+  });
+
+  function bindNum(id, key, min){
+    var el = $(id); el.value = S[key];
+    el.addEventListener("change", function(){
+      var v = parseFloat(el.value);
+      if(!(v >= min)){ el.value = S[key]; say("Enter a number of at least " + min + "."); return; }
+      S[key] = v; if(key === "wb" || key === "tr") S.example = false; save(); renderNotes();
+    });
+  }
+  bindNum("wb","wb",1); bindNum("tr","tr",1); bindNum("blk","blk",0.1); bindNum("tol","tol",0.05);
+  $("orient").value = S.orient;
+  $("orient").addEventListener("change", function(){ S.orient = this.value; save(); });
+
+  renderNotes();
+  requestAnimationFrame(render);
+})();
+</script>
+</body>
+</html>
